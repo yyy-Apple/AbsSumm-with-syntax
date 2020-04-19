@@ -85,7 +85,7 @@ def get_data(doc_path, target_path):
     data = []
     for d, t in zip(doc, target):
         data.append((d, t[0], t[1], t[2]))
-    return data
+    return doc, data
 
 
 def create_vocab(all_terms):
@@ -103,10 +103,10 @@ def get_NTs(actions):
     return NTs
 
 
-class TransitionParser(object):
+class TransitionParser(nn.Module):
 
     def __init__(self, word_vocab: Vocab, act_vocab: Vocab, nt_vocab: Vocab):
-
+        super().__init__()
         self.word_vocab = word_vocab
         self.act_vocab = act_vocab
         self.nt_vocab = nt_vocab
@@ -165,22 +165,22 @@ class TransitionParser(object):
         self.tokenizer = BertTokenizer.from_pretrained('bert-large-uncased')
         self.bert = BertModel.from_pretrained('bert-large-uncased')
 
-        # TODO: check whether all the parameters are here
-        self.params = list(self.term_lstm.parameters()) \
-                      + list(self.act_lstm.parameters()) \
-                      + list(self.comp_lstm_fwd.parameters()) \
-                      + list(self.comp_lstm_rev.parameters()) \
-                      + list(self.state2act.parameters()) \
-                      + list(self.state2word.parameters()) \
-                      + list(self.comp_h.parameters()) \
-                      + list(self.comp_c.parameters()) \
-                      + list(self.query.parameters()) \
-                      + list(self.word_emb.parameters()) \
-                      + list(self.nt_emb.parameters()) \
-                      + list(self.act_emb.parameters()) \
-                      + list(self.bert.parameters())
+        # # TODO: check whether all the parameters are here
+        # self.params = list(self.term_lstm.parameters()) \
+        #               + list(self.act_lstm.parameters()) \
+        #               + list(self.comp_lstm_fwd.parameters()) \
+        #               + list(self.comp_lstm_rev.parameters()) \
+        #               + list(self.state2act.parameters()) \
+        #               + list(self.state2word.parameters()) \
+        #               + list(self.comp_h.parameters()) \
+        #               + list(self.comp_c.parameters()) \
+        #               + list(self.query.parameters()) \
+        #               + list(self.word_emb.parameters()) \
+        #               + list(self.nt_emb.parameters()) \
+        #               + list(self.act_emb.parameters()) \
+        #               + list(self.bert.parameters())
 
-        self.optimizer = optim.Adam(self.params, lr=0.001)
+        self.optimizer = optim.Adam(self.parameters(), lr=0.001)
 
     def get_valid_actions(self, open_nts: List[int], open_nt_ceil=100):
         """Return a list of valid action index"""
@@ -366,9 +366,8 @@ class TransitionParser(object):
 
     def train(self, data_list: List[Tuple], epoch=2):
         """ Use the document and gold actions to train the model"""
-        # TODO: modify this method according to our data structure
-        # 马德，什么垃圾data，，毕竟按照gold来，还是会有oov什么的，还是会生成不完整的语法树。。干脆所有action用完就撤
-        # in each tuple, the first is tree, second is list of str(which is sentence), the third is action
+        # in each tuple, the first is document(str), second is tree, third is list of str (sentence), the forth is
+        # list of str (action)
         for i in range(epoch):
             np.random.shuffle(data_list)
             running_loss = 0.0
@@ -376,10 +375,7 @@ class TransitionParser(object):
                 if 'SEP' in data[0]:
                     # handle some parsing error
                     continue
-                print(data[2])
-                print(data[3])
                 losses, _ = self.generate(data[0], data[2], data[3])
-                print(losses)
                 if len(losses) > 0:
                     self.optimizer.zero_grad()
                     final_loss = sum(losses)
@@ -392,41 +388,28 @@ class TransitionParser(object):
     def inference(self, doc_list):
         pred = []
         for doc in doc_list:
+            print(doc)
             _, terms = self.generate(doc)
             pred.append(" ".join(terms))
         return pred
 
 
-# %%
-train = get_data('data/sumdata/train/valid.article.txt', 'data/sumdata/train/valid.target.txt')
+def main():
+    _, train = get_data('data/sumdata/train/valid.article.mini.txt', 'data/sumdata/train/valid.target.mini.txt')
+    doc, _ = get_data('data/sumdata/train/valid.article.mini.txt', 'data/sumdata/train/valid.target.mini.txt')
+    word_vocab = Vocab.from_file('data/sumdata/train/valid.article.mini.txt', 1)
+    act_vocab = create_vocab([x[3] for x in train])
+    nt_vocab = Vocab.from_list(get_NTs(act_vocab.w2i.keys()))
+    tp = TransitionParser(word_vocab, act_vocab, nt_vocab)
+    print("BEGIN TRAINING...")
+    tp.train(train)
+    print("END TRAINING...")
+    pred = tp.inference(doc)
+    with open("./predict.txt", "w", encoding="utf-8") as f:
+        for p in pred:
+            f.write(p)
+            f.write("\n")
 
-# %%
-word_vocab = Vocab.from_file('data/sumdata/train/train.article.txt', 5)
-act_vocab = create_vocab([x[3] for x in train])
-nt_vocab = Vocab.from_list(get_NTs(act_vocab.w2i.keys()))
-tp = TransitionParser(word_vocab, act_vocab, nt_vocab)
-# %%
-tp.train(train)
 
-#%%
-input_file = open('data/sumdata/train/valid.target.txt')
-cc = 0
-for line in input_file.readlines():
-    if line.startswith('# ('):
-        cc += 1
-
-print("startswith \"# (\"", cc)
-
-input_file = open('data/.oracle')
-cc = 0
-for line in input_file.readlines():
-    if line.startswith('#'):
-        cc += 1
-
-print("startswith \"#\"", cc)
-
-input_file = open('train_gen.oracle')
-for line in input_file.readlines():
-    if line.startswith('#') and not line.startswith('# ('):
-        print('example:', line.strip())
-        break
+if __name__ == '__main__':
+    main()
