@@ -165,21 +165,6 @@ class TransitionParser(nn.Module):
         self.tokenizer = BertTokenizer.from_pretrained('bert-large-uncased')
         self.bert = BertModel.from_pretrained('bert-large-uncased')
 
-        # # TODO: check whether all the parameters are here
-        # self.params = list(self.term_lstm.parameters()) \
-        #               + list(self.act_lstm.parameters()) \
-        #               + list(self.comp_lstm_fwd.parameters()) \
-        #               + list(self.comp_lstm_rev.parameters()) \
-        #               + list(self.state2act.parameters()) \
-        #               + list(self.state2word.parameters()) \
-        #               + list(self.comp_h.parameters()) \
-        #               + list(self.comp_c.parameters()) \
-        #               + list(self.query.parameters()) \
-        #               + list(self.word_emb.parameters()) \
-        #               + list(self.nt_emb.parameters()) \
-        #               + list(self.act_emb.parameters()) \
-        #               + list(self.bert.parameters())
-
         self.optimizer = optim.Adam(self.parameters(), lr=0.001)
 
     def get_valid_actions(self, open_nts: List[int], open_nt_ceil=100):
