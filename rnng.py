@@ -7,6 +7,7 @@ from typing import Dict, List, Tuple
 from itertools import chain
 from torch.nn.utils import clip_grad_norm_
 from tqdm import trange, tqdm
+import fire
 
 
 class Vocab(object):
@@ -382,7 +383,7 @@ class TransitionParser(nn.Module):
         return pred
 
 
-def main():
+def main(n_epochs=2):
     # Use for training
     _, train = get_data('train.article', 'train.oracle')
     # Use for inference
@@ -393,7 +394,7 @@ def main():
     nt_vocab = Vocab.from_list(get_NTs(act_vocab.w2i.keys()))
     tp = TransitionParser(word_vocab, act_vocab, nt_vocab).to(DEVICE)
     print("BEGIN TRAINING...")
-    tp.train(train)
+    tp.train(train, epoch=n_epochs)
     print("END TRAINING...")
 
     # Write prediction to file
@@ -403,5 +404,6 @@ def main():
             f.write(p)
             f.write("\n")
 
+
 if __name__ == '__main__':
-    main()
+    fire.Fire(main)
