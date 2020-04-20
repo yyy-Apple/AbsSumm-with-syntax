@@ -6,6 +6,8 @@ from transformers import BertTokenizer, BertModel
 from typing import Dict, List, Tuple
 from itertools import chain
 from torch.nn.utils import clip_grad_norm_
+from tqdm import trange, tqdm
+
 
 class Vocab(object):
     def __init__(self, w2i: Dict):
@@ -347,7 +349,7 @@ class TransitionParser(nn.Module):
                 open_nts.append(open_nt_index)
             if term:
                 terms.append(term)
-        print(" ".join(terms))
+        # print(" ".join(terms))
         return losses, terms
 
     def train(self, data_list: List[Tuple], epoch=10):
@@ -357,7 +359,7 @@ class TransitionParser(nn.Module):
         for i in range(epoch):
             np.random.shuffle(data_list)
             running_loss = 0.0
-            for data in data_list:
+            for data in tqdm(data_list, desc=f'Training Epoch {i}'):
                 if 'SEP' in data[0]:
                     # handle some parsing error
                     continue
