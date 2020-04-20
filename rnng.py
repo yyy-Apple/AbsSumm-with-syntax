@@ -6,8 +6,6 @@ from transformers import BertTokenizer, BertModel
 from typing import Dict, List, Tuple
 from itertools import chain
 from torch.nn.utils import clip_grad_norm_
-from tqdm import trange, tqdm
-import fire
 
 
 class Vocab(object):
@@ -326,10 +324,10 @@ class TransitionParser(nn.Module):
         tokens_tensor = torch.tensor(list_of_index).unsqueeze(0).to(DEVICE)
         memory = self.bert(tokens_tensor)[0]
 
-        terms, actions, open_nts, losses = [], [], [], []
+        terms, actions, open_nts, act_losses, word_losses = [], [], [], [], []
         while len(terms) < 2 or len(self.stack) > 2:  # we stop when we get a valid tree
 
-            if len(terms) > 30:  # during inference
+            if len(terms) > 50:  # during inference
                 break
 
             if train_sent:
@@ -340,34 +338,34 @@ class TransitionParser(nn.Module):
 
             action, loss, final_states = self.get_action(valid_actions, len(actions), memory, train_acts)
             if loss:
-                losses.append(loss)
+                act_losses.append(loss)
             actions.append(action)
 
             word_loss, open_nt_index, term = self.do_action(action, open_nts, len(terms), final_states, train_sent)
             if word_loss:
-                losses.append(word_loss)
+                word_losses.append(word_loss)
             if open_nt_index:
                 open_nts.append(open_nt_index)
             if term:
                 terms.append(term)
-        # print(" ".join(terms))
-        return losses, terms
+        print(" ".join(terms))
+        return act_losses, word_losses, terms
 
     def train(self, data_list: List[Tuple], epoch=10):
         """ Use the document and gold actions to train the model"""
         # in each tuple, the first is document(str), second is tree, third is list of str (sentence), the forth is
         # list of str (action)
         for i in range(epoch):
-            np.random.shuffle(data_list)
+            # np.random.shuffle(data_list)
             running_loss = 0.0
-            for data in tqdm(data_list, desc=f'Training Epoch {i}'):
+            for data in data_list:
                 if 'SEP' in data[0]:
                     # handle some parsing error
                     continue
-                losses, _ = self.generate(data[0], data[2], data[3])
-                if len(losses) > 0:
+                act_losses, word_losses, _ = self.generate(data[0], data[2], data[3])
+                if len(act_losses) > 0 or len(word_losses) > 0:
                     self.optimizer.zero_grad()
-                    final_loss = sum(losses)
+                    final_loss = sum(act_losses) / len(act_losses) + sum(word_losses) / len(word_losses)
                     running_loss += final_loss.item()
                     final_loss.backward()
                     clip_grad_norm_(self.parameters(), 0.5)
@@ -378,23 +376,23 @@ class TransitionParser(nn.Module):
     def inference(self, doc_list):
         pred = []
         for doc in doc_list:
-            _, terms = self.generate(doc)
+            _, _, terms = self.generate(doc)
             pred.append(" ".join(terms))
         return pred
 
 
-def main(n_epochs=2):
+def main():
     # Use for training
-    _, train = get_data('train.article', 'train.oracle')
+    _, train = get_data('data/sumdata/train/valid.article.txt', 'data/sumdata/train/valid.target.txt')
     # Use for inference
-    doc, _ = get_data('dev.article', 'dev.oracle')
-
-    word_vocab = Vocab.from_file('train.article', 5)
+    doc, _ = get_data('data/sumdata/train/valid.article.mini.txt', 'data/sumdata/train/valid.target.mini.txt')
+    word_vocab = Vocab.from_file('data/sumdata/train/valid.article.txt', 5)
     act_vocab = create_vocab([x[3] for x in train])
     nt_vocab = Vocab.from_list(get_NTs(act_vocab.w2i.keys()))
     tp = TransitionParser(word_vocab, act_vocab, nt_vocab).to(DEVICE)
     print("BEGIN TRAINING...")
-    tp.train(train, epoch=n_epochs)
+    tp.train(train)
+    torch.save(tp.state_dict(), 'rnng.pth')
     print("END TRAINING...")
 
     # Write prediction to file
@@ -406,4 +404,4 @@ def main(n_epochs=2):
 
 
 if __name__ == '__main__':
-    fire.Fire(main)
+    main()
