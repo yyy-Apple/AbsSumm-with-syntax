@@ -382,11 +382,11 @@ class TransitionParser(nn.Module):
 
 def main():
     # Use for training
-    _, train = get_data('valid.article.mini.txt', 'valid.target.mini.txt')
+    _, train = get_data('train.article', 'train.oracle')
     # Use for inference
-    doc, _ = get_data('valid.article.mini.txt', 'valid.target.mini.txt')
+    doc, _ = get_data('dev.article', 'dev.oracle')
 
-    word_vocab = Vocab.from_file('valid.article.mini.txt', 5)
+    word_vocab = Vocab.from_file('train.article', 5)
     act_vocab = create_vocab([x[3] for x in train])
     nt_vocab = Vocab.from_list(get_NTs(act_vocab.w2i.keys()))
     tp = TransitionParser(word_vocab, act_vocab, nt_vocab).to(DEVICE)
