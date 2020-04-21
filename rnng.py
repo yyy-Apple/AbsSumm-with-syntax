@@ -406,7 +406,7 @@ def main(n_epochs=2):
     # Use for inference
     doc, _ = get_data('test.article', 'test.oracle')
 
-    word_vocab = Vocab.from_file('data/sumdata/train/valid.article.txt', 5)
+    word_vocab = Vocab.from_file('train.article', 5)
     act_vocab = create_vocab([x[3] for x in train])
     nt_vocab = Vocab.from_list(get_NTs(act_vocab.w2i.keys()))
     tp = TransitionParser(word_vocab, act_vocab, nt_vocab).to(DEVICE)
