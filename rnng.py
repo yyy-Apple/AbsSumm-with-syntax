@@ -350,7 +350,7 @@ class TransitionParser(nn.Module):
                 open_nts.append(open_nt_index)
             if term:
                 terms.append(term)
-        print(" ".join(terms))
+        # print(" ".join(terms))
         return act_losses, word_losses, terms
 
     def train(self, data_list: List[Tuple], epoch=10):
