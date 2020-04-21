@@ -360,7 +360,7 @@ class TransitionParser(nn.Module):
         best_loss = float('inf')
         for i in range(epoch):
             # np.random.shuffle(data_list)
-            running_loss = 0.0
+            running_loss, running_act_loss, running_word_loss = 0., 0., 0.
             for data in tqdm(data_list, desc=f'Training Epoch {i}'):
                 if 'SEP' in data[0]:
                     # handle some parsing error
@@ -369,16 +369,28 @@ class TransitionParser(nn.Module):
                 if len(act_losses) > 0 or len(word_losses) > 0:
                     self.optimizer.zero_grad()
                     final_loss = sum(act_losses) / len(act_losses) + sum(word_losses) / len(word_losses)
+                    running_act_loss += sum(act_losses).item() / len(act_losses)
+                    running_word_loss += sum(word_losses).item() / len(word_losses)
                     running_loss += final_loss.item()
                     final_loss.backward()
                     clip_grad_norm_(self.parameters(), 0.5)
                     self.optimizer.step()
+
             running_loss = running_loss / len(data_list)
-            print("On epoch %d, current loss is: %f" % (i, running_loss))
+            running_act_loss = running_act_loss / len(data_list)
+            running_word_loss = running_word_loss / len(data_list)
+
+            # print("On epoch %d, current loss is: %f" % (i, running_loss))
+
+            print(f'Epoch {i} Finished\n'
+                  f'Act Loss: {running_act_loss}\n'
+                  f'Word Loss: {running_word_loss}\n'
+                  f'Total: {running_loss}')
+
             if running_loss < best_loss:
                 best_loss = running_loss
                 torch.save(self.state_dict(), 'rnng.pt')
-                print('rnng model updated.')
+                print('RNNG Model Updated.')
 
     def inference(self, doc_list):
         pred = []
