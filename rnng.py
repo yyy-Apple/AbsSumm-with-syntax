@@ -402,13 +402,15 @@ class TransitionParser(nn.Module):
 
 def main(n_epochs=2):
     # Use for training
-    _, train = get_data('data/sumdata/train/valid.article.txt', 'data/sumdata/train/valid.target.txt')
+    _, train = get_data('train.article', 'train.oracle')
     # Use for inference
-    doc, _ = get_data('data/sumdata/train/valid.article.mini.txt', 'data/sumdata/train/valid.target.mini.txt')
+    doc, _ = get_data('test.article', 'test.oracle')
+
     word_vocab = Vocab.from_file('data/sumdata/train/valid.article.txt', 5)
     act_vocab = create_vocab([x[3] for x in train])
     nt_vocab = Vocab.from_list(get_NTs(act_vocab.w2i.keys()))
     tp = TransitionParser(word_vocab, act_vocab, nt_vocab).to(DEVICE)
+
     print("BEGIN TRAINING...")
     tp.train(train, epoch=n_epochs)
     print("END TRAINING...")
